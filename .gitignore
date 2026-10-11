@@ -1,0 +1,47 @@
+# ==========================================
+# StudyMate - Root Git Ignore Rules
+# ==========================================
+
+# 1. Environment & API Secrets
+.env
+.env.*
+!.env.example
+
+# 2. Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 3. Production Build Artifacts
+dist/
+build/
+client/dist/
+
+# 4. Student Uploads & Files (Confidential study documents)
+uploads/*
+!uploads/.gitkeep
+
+# 5. SQLite Databases & Runtime Database Files
+data/*
+!data/.gitkeep
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# 6. Runtime Logs & Diagnostics
+*.log
+logs/
+
+# 7. OS & Editor Artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
