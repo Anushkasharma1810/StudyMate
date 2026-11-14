@@ -2,8 +2,10 @@ import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import bcrypt from 'bcryptjs';
+import { DATA_DIR, IS_PRODUCTION } from '../config.js';
 
-const dbDir = path.resolve(process.cwd(), 'data');
+// DATA_DIR comes from env (point it at a persistent volume on the host)
+const dbDir = DATA_DIR;
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
@@ -227,7 +229,15 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_study_tasks_plan ON study_tasks(plan_id);
   `);
 
-  // Seed demo student user if not exists
+  // Migration: each visitor without an account gets their own private guest user
+  const userCols = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+  if (!userCols.some(c => c.name === 'is_guest')) {
+    db.exec('ALTER TABLE users ADD COLUMN is_guest INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // Seed a local demo user for the dev test scripts only. Never in production:
+  // its password is in the source code, so anyone could log into it on a live site.
+  if (IS_PRODUCTION) return;
   const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get('demo@studymate.ai');
   if (!existingUser) {
     const demoId = 'user_demo_studymate_001';

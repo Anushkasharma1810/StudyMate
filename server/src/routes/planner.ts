@@ -1,12 +1,13 @@
 import { Router, Response } from 'express';
 import { db } from '../db/database.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { aiLimiters } from '../middleware/rateLimit.js';
 import { generateStudyPlan } from '../services/aiService.js';
 
 const router = Router();
 
 // Generate study plan with AI
-router.post('/generate', async (req: AuthRequest, res: Response) => {
+router.post('/generate', ...aiLimiters, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id || 'user_demo_studymate_001';
     const {

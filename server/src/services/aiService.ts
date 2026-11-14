@@ -1,7 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import OpenAI from 'openai';
 import dotenv from 'dotenv';
-import { db } from '../db/database.js';
 
 dotenv.config();
 
@@ -11,28 +10,36 @@ export interface AiConfig {
   model?: string;
 }
 
-export function getAiConfigForUser(userId: string = 'user_demo_studymate_001'): AiConfig {
-  const targetId = userId || 'user_demo_studymate_001';
-  const userPref: any = db.prepare('SELECT ai_provider, api_key_override FROM user_preferences WHERE user_id = ?').get(targetId);
+/**
+ * AI is configured once by the site owner in the server's .env file.
+ * Users never need (or see) an API key — every account uses the server's key.
+ * `_userId` is kept so callers don't need to change.
+ */
+export function getAiConfigForUser(_userId?: string): AiConfig {
+  const geminiKey = (process.env.GEMINI_API_KEY || '').trim();
+  const openaiKey = (process.env.OPENAI_API_KEY || '').trim();
+  const preferred = (process.env.AI_PROVIDER || 'gemini').trim().toLowerCase();
 
-  const userProvider = userPref?.ai_provider || process.env.AI_PROVIDER || 'gemini';
-  const userKeyOverride = userPref?.api_key_override?.trim();
+  // Use the preferred provider; if its key is missing, fall back to the other one
+  const useOpenAi = (preferred === 'openai' && openaiKey) || (!geminiKey && openaiKey);
 
-  if (userProvider === 'openai') {
-    const key = userKeyOverride || process.env.OPENAI_API_KEY || '';
+  if (useOpenAi) {
     return {
       provider: 'openai',
-      apiKey: key,
+      apiKey: openaiKey,
       model: process.env.OPENAI_MODEL || 'gpt-4o-mini'
     };
-  } else {
-    const key = userKeyOverride || process.env.GEMINI_API_KEY || '';
-    return {
-      provider: 'gemini',
-      apiKey: key,
-      model: process.env.GEMINI_MODEL || 'gemini-2.5-flash'
-    };
   }
+  return {
+    provider: 'gemini',
+    apiKey: geminiKey,
+    model: process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+  };
+}
+
+/** True when the server has an AI key configured in .env. */
+export function isAiConfigured(): boolean {
+  return Boolean(getAiConfigForUser().apiKey);
 }
 
 export function isApiKeyError(err: any): boolean {
@@ -108,23 +115,88 @@ export function getAiFailureReason(err: any, featureName: string = 'AI feature')
 
   let warning = '';
   if (isKey) {
-    warning = 'Live AI API key not configured or invalid. Generated using document text extraction. Add your API key in Settings to enable live LLM generation.';
+    // Shown to end users: keep it simple, no mention of API keys
+    console.warn(`[AI] ${featureName}: server AI key missing or invalid — check GEMINI_API_KEY / OPENAI_API_KEY in .env`);
+    warning = 'AI is temporarily unavailable, so this was generated directly from your document text.';
   } else if (isQuota) {
-    warning = 'AI provider quota or rate limit exceeded. Generated using grounded document text extraction.';
+    warning = 'AI is busy right now (too many requests). This was generated directly from your document text — try again in a minute for a full AI answer.';
   } else if (isNetwork) {
-    warning = 'Network connection to AI provider failed. Generated using grounded document text extraction.';
+    warning = 'Could not reach the AI service. This was generated directly from your document text.';
   } else {
-    warning = `${featureName} encountered a model error (${err?.message?.slice(0, 80) || 'unknown'}). Generated using grounded document text extraction.`;
+    console.warn(`[AI] ${featureName} model error:`, err?.message);
+    warning = 'AI had a problem with this request, so this was generated directly from your document text.';
   }
 
   return { isKey, isQuota, isNetwork, warning };
 }
+
+// ----------------- RETRY FOR TEMPORARY AI ERRORS -----------------
+// Free-tier LLM APIs sometimes fail briefly (model overloaded, 5xx, per-minute limit,
+// dropped connection, empty reply). Waiting a moment and trying again usually works.
+const RETRY_DELAYS_MS = [1200, 3000]; // up to 2 retries → 3 attempts total
+
+function getErrorStatus(err: any): number | undefined {
+  const s = err?.status ?? err?.statusCode ?? err?.code ?? err?.error?.code;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Temporary errors worth retrying. Wrong key / bad request / daily quota are not. */
+export function isRetryableAiError(err: any): boolean {
+  if (!err || isApiKeyError(err)) return false;
+  if (err.message === 'EMPTY_AI_RESPONSE') return true;
+
+  const status = getErrorStatus(err);
+  if (status !== undefined && [408, 500, 502, 503, 504].includes(status)) return true;
+
+  let text = String(err.message || '').toLowerCase();
+  try { text += ' ' + JSON.stringify(err).toLowerCase(); } catch { /* ignore */ }
+
+  // A per-day quota won't come back in a few seconds — don't waste time retrying
+  if (text.includes('per day') || text.includes('perday')) return false;
+  if (status === 429 || isQuotaError(err)) return true; // per-minute limits often clear quickly
+
+  return (
+    isNetworkError(err) ||
+    text.includes('overloaded') ||
+    text.includes('unavailable') ||
+    text.includes('internal error') ||
+    text.includes('deadline') ||
+    text.includes('try again')
+  );
+}
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function executeAiPrompt(
   prompt: string,
   systemInstruction: string = '',
   config: AiConfig,
   forceJson: boolean = false
+): Promise<{ text: string; isAi: boolean; provider: string; model: string }> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await executeAiPromptOnce(prompt, systemInstruction, config, forceJson);
+    } catch (err: any) {
+      const canRetry = attempt < RETRY_DELAYS_MS.length && isRetryableAiError(err);
+      if (!canRetry) throw err;
+
+      // Small random jitter so many users don't retry at the exact same moment
+      const delay = RETRY_DELAYS_MS[attempt] + Math.floor(Math.random() * 400);
+      console.warn(
+        `[AI] Temporary error (attempt ${attempt + 1}/${RETRY_DELAYS_MS.length + 1}): ` +
+        `${String(err?.message || err).slice(0, 120)} — retrying in ${delay}ms`
+      );
+      await sleep(delay);
+    }
+  }
+}
+
+async function executeAiPromptOnce(
+  prompt: string,
+  systemInstruction: string,
+  config: AiConfig,
+  forceJson: boolean
 ): Promise<{ text: string; isAi: boolean; provider: string; model: string }> {
   if (!config.apiKey) {
     throw new Error('MISSING_API_KEY');
@@ -146,6 +218,7 @@ export async function executeAiPrompt(
     });
 
     const text = completion.choices[0]?.message?.content || '';
+    if (!text.trim()) throw new Error('EMPTY_AI_RESPONSE');
     return { text, isAi: true, provider: 'openai', model: config.model || 'gpt-4o-mini' };
   } else {
     // Google Gemini via @google/genai
@@ -160,6 +233,7 @@ export async function executeAiPrompt(
     });
 
     const text = response.text || '';
+    if (!text.trim()) throw new Error('EMPTY_AI_RESPONSE');
     return { text, isAi: true, provider: 'gemini', model };
   }
 }
@@ -190,7 +264,9 @@ export async function generateNotes(
     ? 'Write in modern Hinglish (conversational Hindi-English blend commonly used by Indian college students, e.g. "Yeh concept samajhne ke liye pehle fundamental rules dekhte hain...").'
     : 'Write in clear, academic English.';
 
-  const systemPrompt = `You are StudyMate, a world-class AI academic tutor and notes creator.
+  const systemPrompt = `You are StudyMate, a world-class AI tutor and notes creator for ANY subject or field
+(science, engineering, commerce, humanities, law, medicine, languages, arts, competitive exams, professional skills, etc.).
+First infer the subject of the material, then adapt the notes to it — never assume a STEM topic.
 Create structured, beautifully formatted markdown notes from the provided study material.
 Tone: Academic, insightful, encouraging, and highly organized.
 Audience level: ${options.learningLevel}.
@@ -202,7 +278,7 @@ FORMATTING GUIDELINES:
 ## 🎯 Overview & Learning Objectives
 ## 💡 Core Concepts & Deep Explanations
 ${options.highlightDefinitions ? '## 📖 Definitions & Key Terminology\n- Clearly define technical terms.' : ''}
-${options.highlightFormulas ? '## 📐 Formulas, Laws & Important Facts\n- Highlight equations, theorems, and rules.' : ''}
+${options.highlightFormulas ? '## 📐 Key Facts, Rules & Formulas\n- Highlight whatever is "must-remember" for this subject: formulas/equations, laws/sections/acts, dates & events, rules, frameworks, quotes, or figures. Skip types that do not apply.' : ''}
 ${options.includeExamples ? '## 🔍 Real-World Examples & Applications' : ''}
 ## ⚠️ Common Misconceptions & Confusing Concepts
 ${options.generatePracticeQuestions ? '## 📝 Important Exam Practice Questions' : ''}
@@ -375,7 +451,7 @@ export async function generateFlashcards(
 ) {
   const config = getAiConfigForUser(userId);
 
-  const systemPrompt = `You are StudyMate Spaced Repetition Expert. Extract key concepts, definitions, formulas, and mechanisms from the text into ${cardCount} flashcards.
+  const systemPrompt = `You are StudyMate Spaced Repetition Expert. Extract the most important things to remember from the text — key concepts, terms, definitions, facts, dates, rules, formulas, or processes (whatever fits the subject) — into ${cardCount} flashcards.
 Return ONLY valid JSON:
 {
   "cards": [
@@ -417,12 +493,13 @@ export async function explainConcept(
 ) {
   const config = getAiConfigForUser(userId);
   const systemPrompt = `You are StudyMate Concept Explainer.
+The concept can be from ANY subject or field — adapt your explanation style to it.
 Explain the requested concept for a ${level} audience.
 Include:
 1. 💡 Simple 1-sentence definition.
 2. 🍎 Everyday Analogy / Mental Model.
-3. 🔬 Step-by-Step Mechanism or Mathematical Breakdown.
-4. 🌍 Real-world practical application.
+3. 🔬 Step-by-Step Breakdown (how it works, the reasoning, the process, the timeline, or the derivation — whichever suits the subject).
+4. 🌍 Real-world application or example.
 5. 🎯 One quick check-for-understanding practice question with answer.`;
 
   const prompt = `Concept: "${concept}"\n${contextText ? 'Context:\n' + contextText.slice(0, 8000) : ''}`;
@@ -430,9 +507,10 @@ Include:
   try {
     const result = await executeAiPrompt(prompt, systemPrompt, config);
     return { explanation: result.text, isAi: true };
-  } catch {
+  } catch (err: any) {
+    console.warn('[AI] Concept explainer failed:', err?.message);
     return {
-      explanation: `### Concept: ${concept}\n\n**Definition:** ${concept} is a foundational concept discussed in your study material.\n\n**Key Insight:** Break down this topic into fundamental principles and explore real-world cases.\n\n*(Connect your Gemini or OpenAI API Key in Settings for deep, tailored multi-level explanations and interactive analogies.)*`,
+      explanation: `### Concept: ${concept}\n\n**Definition:** ${concept} is a foundational concept discussed in your study material.\n\n**Key Insight:** Break down this topic into fundamental principles and explore real-world cases.\n\n*(AI is temporarily unavailable — please try again in a minute for a full explanation with analogies.)*`,
       isAi: false
     };
   }
@@ -580,8 +658,8 @@ function generateHeuristicNotes(title: string, text: string, options: NoteGenera
 
 ## 🎯 Learning Objectives & Overview
 - Master the fundamental principles and structure outlined in **${title}**.
-- Understand critical relationships, operational mechanics, and theoretical background.
-- Prepare systematically for examination questions and real-world synthesis.
+- Understand the key ideas, how they connect, and the background behind them.
+- Prepare systematically for exam questions and real-world use.
 
 ## 💡 Core Concepts & Deep Analysis
 ${keyPoints.slice(0, 5).map((kp, idx) => `### ${idx + 1}. Fundamental Concept\n${kp}\n`).join('\n')}
@@ -589,17 +667,17 @@ ${keyPoints.slice(0, 5).map((kp, idx) => `### ${idx + 1}. Fundamental Concept\n$
 ${options.highlightDefinitions ? `## 📖 Definitions & Key Terminology\n${definitions.slice(0, 4).map(d => `- **Definition:** ${d}`).join('\n') || '- Refer to primary sections for terminology definitions.'}` : ''}
 
 ## 🔍 Examples & Practical Applications
-- **Application 1:** Practical application in standard problem-solving environments.
-- **Application 2:** Diagnostic and computational procedures derived from source data.
+- **Application 1:** How these ideas are used in practice or in exam answers.
+- **Application 2:** Connect each concept to an example from the material or everyday life.
 
 ## ⚠️ Common Confusing Concepts & Tips
-- Verify edge cases and formula boundary constraints.
-- Differentiate between correlated attributes and causal mechanisms.
+- Watch out for similar-sounding terms and exceptions to the general rule.
+- Distinguish between what is directly stated and what is an interpretation.
 
 ## ⚡ Quick 5-Minute Revision Summary
-1. Core principles establish the baseline rules.
-2. Definitions clarify technical boundaries.
-3. Review formula applications and standard derivations prior to examination.
+1. Core ideas form the foundation of this topic.
+2. Definitions and key terms clarify exactly what each idea means.
+3. Revise the key facts and examples before your exam.
 `;
 }
 
@@ -634,9 +712,9 @@ function generateHeuristicQuiz(options: QuizGenerationOptions): any[] {
         topic: options.documentTitle
       });
     } else {
-      const wrong1 = `It is unrelated to the primary mechanism.`;
-      const wrong2 = `It only occurs under inverse conditions.`;
-      const wrong3 = `It was superseded by secondary theories.`;
+      const wrong1 = `It is not discussed in the study material.`;
+      const wrong2 = `It applies only in rare exceptional cases.`;
+      const wrong3 = `The material states the opposite of this.`;
       const correct = `Directly reflects: ${s.slice(0, 80)}...`;
 
       questions.push({

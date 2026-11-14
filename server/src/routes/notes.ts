@@ -1,12 +1,13 @@
 import { Router, Response } from 'express';
 import { db } from '../db/database.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { aiLimiters } from '../middleware/rateLimit.js';
 import { generateNotes, executeAiPrompt, getAiConfigForUser } from '../services/aiService.js';
 
 const router = Router();
 
 // Generate new notes from a document
-router.post('/generate', async (req: AuthRequest, res: Response) => {
+router.post('/generate', ...aiLimiters, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id || 'user_demo_studymate_001';
     const {
@@ -184,7 +185,7 @@ router.delete('/:id', (req: AuthRequest, res: Response) => {
 });
 
 // Transform selected section (shorten, expand, simplify, generate examples)
-router.post('/transform', async (req: AuthRequest, res: Response) => {
+router.post('/transform', ...aiLimiters, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id || 'user_demo_studymate_001';
     const { action, text } = req.body;
@@ -200,7 +201,7 @@ router.post('/transform', async (req: AuthRequest, res: Response) => {
     } else if (action === 'shorten') {
       instruction = 'Condense this text into a concise 2-3 bullet point summary retaining only the essential facts.';
     } else if (action === 'expand') {
-      instruction = 'Expand on this concept with deeper academic detail, mechanisms, and nuances.';
+      instruction = 'Expand on this concept with deeper detail, context, and nuances suited to its subject.';
     } else if (action === 'examples') {
       instruction = 'Provide two vivid, concrete real-world examples illustrating this exact concept.';
     } else {
@@ -218,7 +219,7 @@ router.post('/transform', async (req: AuthRequest, res: Response) => {
       } else if (action === 'simplify') {
         res.json({ result: `**Simplified:** ${text}\n\n*Think of this like a real-world system where each component works together harmoniously.*`, isAi: false });
       } else if (action === 'examples') {
-        res.json({ result: `**Example 1:** Standard engineering/practical case study.\n**Example 2:** Daily life analogy showcasing the core mechanism.`, isAi: false });
+        res.json({ result: `**Example 1:** A practical example from the subject area.\n**Example 2:** An everyday-life example of the same idea.\n\n*(AI is temporarily unavailable — try again in a minute for examples specific to this text.)*`, isAi: false });
       } else {
         res.json({ result: text + '\n\n*(Further details and sub-components applied in advanced scenarios)*', isAi: false });
       }

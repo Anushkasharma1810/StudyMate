@@ -13,33 +13,40 @@ import plannerRoutes from './routes/planner.js';
 import toolRoutes from './routes/tools.js';
 import analyticsRoutes from './routes/analytics.js';
 import { authMiddleware } from './middleware/auth.js';
+import { IS_PRODUCTION, DATA_DIR, UPLOADS_DIR } from './config.js';
+import { isAiConfigured } from './services/aiService.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Hosts like Railway/Render sit behind a proxy; trust it so req.ip is the real visitor IP
+// (needed for per-IP rate limits).
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
 // Initialize SQLite database
 initDatabase();
 
 // Middleware
+// In production the frontend is served by this same server (same origin), so CORS is only
+// needed for local development or if CORS_ORIGIN is set explicitly.
 app.use(cors({
-  origin: '*',
+  origin: process.env.CORS_ORIGIN || (IS_PRODUCTION ? false : '*'),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id']
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 
-// Health Check
+// Health Check (used by the host to know the app is up)
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'online',
     app: 'StudyMate — AI Study Assistant API',
     timestamp: new Date().toISOString(),
-    aiProvider: process.env.AI_PROVIDER || 'gemini',
-    hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
-    hasOpenAiKey: Boolean(process.env.OPENAI_API_KEY)
+    aiReady: isAiConfigured()
   });
 });
 
@@ -73,6 +80,9 @@ app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(`🚀 StudyMate Backend Server is running on port ${PORT}`);
   console.log(`📡 API Health: http://localhost:${PORT}/api/health`);
-  console.log(`🤖 AI Provider: ${process.env.AI_PROVIDER || 'gemini'}`);
+  console.log(`🤖 AI Provider: ${process.env.AI_PROVIDER || 'gemini'} (${isAiConfigured() ? 'key configured' : '⚠️ NO KEY — set GEMINI_API_KEY'})`);
+  console.log(`💾 Database dir: ${DATA_DIR}`);
+  console.log(`📁 Uploads dir:  ${UPLOADS_DIR}`);
+  console.log(`🌍 Mode: ${IS_PRODUCTION ? 'production' : 'development'}`);
   console.log(`=======================================================`);
 });

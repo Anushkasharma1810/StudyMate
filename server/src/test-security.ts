@@ -3,8 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { db, initDatabase } from './db/database.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'studymate_super_secure_jwt_secret_key_2026';
-const baseUrl = 'http://localhost:5000';
+import { JWT_SECRET } from './config.js';
+const baseUrl = process.env.TEST_BASE_URL || 'http://localhost:5000';
 
 function generateToken(userId: string, email: string) {
   return jwt.sign({ id: userId, email }, JWT_SECRET, { expiresIn: '1h' });

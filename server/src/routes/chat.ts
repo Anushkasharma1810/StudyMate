@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { db } from '../db/database.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { aiLimiters } from '../middleware/rateLimit.js';
 import { retrieveRelevantChunks } from '../services/ragService.js';
 import { answerPdfQuestion } from '../services/aiService.js';
 
@@ -98,7 +99,7 @@ router.get('/sessions/:id/messages', (req: AuthRequest, res: Response) => {
 });
 
 // Post message & get grounded RAG response
-router.post('/sessions/:id/message', async (req: AuthRequest, res: Response) => {
+router.post('/sessions/:id/message', ...aiLimiters, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id || 'user_demo_studymate_001';
     const sessionId = req.params.id;
@@ -111,6 +112,15 @@ router.post('/sessions/:id/message', async (req: AuthRequest, res: Response) => 
     const session: any = db.prepare('SELECT * FROM chat_sessions WHERE id = ? AND user_id = ?').get(sessionId, userId);
     if (!session) {
       return res.status(404).json({ error: 'Session not found' });
+    }
+
+    // Auto-title a fresh chat from its first question (like ChatGPT)
+    const msgCount: any = db.prepare('SELECT COUNT(*) as c FROM chat_messages WHERE session_id = ?').get(sessionId);
+    let sessionTitle: string = session.title;
+    if ((msgCount?.c ?? 0) === 0 && ['New Chat', 'Document Q&A'].includes(session.title)) {
+      const clean = message.trim().replace(/\s+/g, ' ');
+      sessionTitle = clean.length > 48 ? clean.slice(0, 48) + '…' : clean;
+      db.prepare('UPDATE chat_sessions SET title = ? WHERE id = ?').run(sessionTitle, sessionId);
     }
 
     // Save user message
@@ -168,6 +178,7 @@ router.post('/sessions/:id/message', async (req: AuthRequest, res: Response) => 
     db.prepare('UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(sessionId);
 
     res.json({
+      sessionTitle,
       userMessage: {
         id: userMsgId,
         role: 'user',
@@ -186,6 +197,25 @@ router.post('/sessions/:id/message', async (req: AuthRequest, res: Response) => 
   } catch (err: any) {
     console.error('Chat error:', err);
     res.status(500).json({ error: err.message || 'Failed to process chat message' });
+  }
+});
+
+// Delete a chat session (and its messages)
+router.delete('/sessions/:id', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id || 'user_demo_studymate_001';
+    const sessionId = req.params.id;
+
+    const session: any = db.prepare('SELECT id FROM chat_sessions WHERE id = ? AND user_id = ?').get(sessionId, userId);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+
+    db.prepare('DELETE FROM chat_messages WHERE session_id = ?').run(sessionId);
+    db.prepare('DELETE FROM chat_sessions WHERE id = ?').run(sessionId);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
   }
 });
 

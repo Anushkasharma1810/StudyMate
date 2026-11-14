@@ -1,15 +1,17 @@
 {
   "name": "studymate",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "StudyMate - AI study assistant: upload any PDF and get notes, grounded Q&A, quizzes, flashcards and study plans.",
   "scripts": {
     "server": "tsx watch server/src/index.ts",
     "client": "npm --prefix client run dev",
     "dev": "concurrently -k -n \"SERVER,CLIENT\" -c \"blue,magenta\" \"npm run server\" \"npm run client\"",
-    "build:client": "npm --prefix client run build",
-    "build": "npm run build:client",
-    "start": "tsx server/src/index.ts"
+    "build": "npm ci --prefix client --include=dev && npm run build --prefix client",
+    "start": "tsx server/src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit && npm run typecheck --prefix client",
+    "test:security": "tsx server/src/test-security.ts",
+    "test:e2e": "tsx server/src/test-e2e.ts",
+    "test:ai-live": "tsx server/src/test-gemini-live.ts"
   },
   "keywords": [],
   "author": "",
@@ -26,7 +28,8 @@
     "mammoth": "^1.13.0",
     "multer": "^2.4.0",
     "openai": "^7.32.0",
-    "pdf-parse": "^2.4.5"
+    "pdf-parse": "^2.4.5",
+    "tsx": "^4.23.15"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -37,7 +40,9 @@
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.5",
     "concurrently": "^10.0.6",
-    "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

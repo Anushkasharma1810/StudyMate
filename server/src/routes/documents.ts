@@ -4,11 +4,14 @@ import path from 'path';
 import fs from 'fs';
 import { db } from '../db/database.js';
 import { AuthRequest } from '../middleware/auth.js';
+import { uploadLimiter } from '../middleware/rateLimit.js';
+import { UPLOADS_DIR } from '../config.js';
 import { parseDocumentFile, saveDocumentAndChunks } from '../services/documentService.js';
 
 const router = Router();
 
-const uploadDir = path.resolve(process.cwd(), 'uploads');
+// UPLOADS_DIR comes from env (point it at a persistent volume on the host)
+const uploadDir = UPLOADS_DIR;
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
@@ -38,7 +41,7 @@ const upload = multer({
 });
 
 // Upload document
-router.post('/upload', upload.single('file'), async (req: AuthRequest, res: Response) => {
+router.post('/upload', uploadLimiter, upload.single('file'), async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded.' });
