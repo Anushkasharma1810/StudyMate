@@ -1,11 +1,10 @@
 const API_BASE = '/api';
 
 function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('studymate_token');
-  if (token) {
-    return { Authorization: `Bearer ${token}` };
-  }
-  return { 'x-user-id': 'user_demo_studymate_001' };
+  let token: string | null = null;
+  try { token = localStorage.getItem('studymate_token'); } catch { /* storage unavailable */ }
+  // Every visitor has their own token (a private guest token until they sign up)
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -37,7 +36,7 @@ export const api = {
   // Auth
   login: (credentials: any) => request<any>('/auth/login', { method: 'POST', body: JSON.stringify(credentials) }),
   signup: (payload: any) => request<any>('/auth/signup', { method: 'POST', body: JSON.stringify(payload) }),
-  demoLogin: () => request<any>('/auth/demo-login', { method: 'POST' }),
+  createGuest: () => request<any>('/auth/guest', { method: 'POST' }),
   getMe: () => request<any>('/auth/me'),
   updatePreferences: (prefs: any) => request<any>('/auth/preferences', { method: 'PUT', body: JSON.stringify(prefs) }),
 
@@ -67,6 +66,7 @@ export const api = {
   },
   createChatSession: (payload: any) => request<any>('/chat/sessions', { method: 'POST', body: JSON.stringify(payload) }),
   getChatMessages: (sessionId: string) => request<any>(`/chat/sessions/${sessionId}/messages`),
+  deleteChatSession: (sessionId: string) => request<any>(`/chat/sessions/${sessionId}`, { method: 'DELETE' }),
   sendChatMessage: (sessionId: string, message: string, language: string = 'en') =>
     request<any>(`/chat/sessions/${sessionId}/message`, { method: 'POST', body: JSON.stringify({ message, language }) }),
 

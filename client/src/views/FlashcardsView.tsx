@@ -373,7 +373,7 @@ export const FlashcardsView: React.FC = () => {
             No Flashcard Decks Yet
           </h3>
           <p style={{ maxWidth: '440px', margin: '0 auto 24px', fontSize: '0.9rem' }}>
-            Select an uploaded study document above and click "Generate Deck" to automatically extract definitions, formulas, and key concepts.
+            Select an uploaded study document above and click "Generate Deck" to automatically extract key terms, definitions, facts, and concepts.
           </p>
           {documents.length > 0 ? (
             <button onClick={handleGenerateDeck} className="btn btn-primary">
@@ -406,7 +406,7 @@ export const FlashcardsView: React.FC = () => {
                 value={newFront}
                 onChange={e => setNewFront(e.target.value)}
                 className="input"
-                placeholder="e.g. What is the Heisenberg Uncertainty Principle?"
+                placeholder="e.g. What is opportunity cost?"
               />
             </div>
 
@@ -418,7 +418,7 @@ export const FlashcardsView: React.FC = () => {
                 value={newBack}
                 onChange={e => setNewBack(e.target.value)}
                 className="textarea"
-                placeholder="e.g. Δx · Δp ≥ ℏ / 2. Simultaneous position and momentum cannot be known with arbitrary precision."
+                placeholder="e.g. The value of the next best option you give up when making a choice."
               />
             </div>
 

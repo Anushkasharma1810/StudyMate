@@ -348,7 +348,7 @@ export const NotesView: React.FC = () => {
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
               <input type="checkbox" checked={highlightFormulas} onChange={e => setHighlightFormulas(e.target.checked)} />
-              Highlight Formulas & Laws
+              Highlight Key Facts, Dates & Formulas
             </label>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.84rem', cursor: 'pointer' }}>
               <input type="checkbox" checked={generatePracticeQuestions} onChange={e => setGeneratePracticeQuestions(e.target.checked)} />

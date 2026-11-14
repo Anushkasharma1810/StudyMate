@@ -21,7 +21,7 @@ export const PlannerView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Wizard state
-  const [subject, setSubject] = useState('Operating Systems');
+  const [subject, setSubject] = useState('');
   const [examDate, setExamDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 14);
@@ -29,7 +29,7 @@ export const PlannerView: React.FC = () => {
   });
   const [dailyHours, setDailyHours] = useState(2.0);
   const [confidence, setConfidence] = useState('medium');
-  const [syllabusInput, setSyllabusInput] = useState('Processes & Threads, CPU Scheduling, Synchronization & Deadlocks, Virtual Memory & Paging, File Systems');
+  const [syllabusInput, setSyllabusInput] = useState('');
   const [generating, setGenerating] = useState(false);
 
   // Manual task modal
@@ -62,9 +62,12 @@ export const PlannerView: React.FC = () => {
       alert('Please enter a subject and target exam date.');
       return;
     }
-    setGenerating(true);
-
     const topics = syllabusInput.split(/[,;\n]/).map(t => t.trim()).filter(Boolean);
+    if (topics.length === 0) {
+      alert('Please add at least one syllabus topic (separate topics with commas or new lines).');
+      return;
+    }
+    setGenerating(true);
 
     try {
       await api.generatePlan({
@@ -181,7 +184,7 @@ export const PlannerView: React.FC = () => {
               value={subject}
               onChange={e => setSubject(e.target.value)}
               className="input"
-              placeholder="e.g. Data Structures"
+              placeholder="Any subject — e.g. Accountancy, Biology, UPSC History"
             />
           </div>
 
@@ -238,7 +241,7 @@ export const PlannerView: React.FC = () => {
             onChange={e => setSyllabusInput(e.target.value)}
             className="textarea"
             style={{ minHeight: '70px' }}
-            placeholder="Topic 1, Topic 2, Topic 3..."
+            placeholder="List your chapters/topics, e.g. Chapter 1, Chapter 2, Chapter 3..."
           />
         </div>
 

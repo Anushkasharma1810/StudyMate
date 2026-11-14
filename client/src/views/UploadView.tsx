@@ -8,13 +8,14 @@ import {
   BookOpen,
   Sparkles,
   Layers,
-  GraduationCap
+  GraduationCap,
+  FolderCog
 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
 
 export const UploadView: React.FC = () => {
-  const { setActiveTab, setSelectedDocumentId } = useAuth();
+  const { setActiveTab, setSelectedDocumentId, setDocManagerOpen } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [subject, setSubject] = useState('General');
   const [uploading, setUploading] = useState(false);
@@ -22,7 +23,15 @@ export const UploadView: React.FC = () => {
   const [successDoc, setSuccessDoc] = useState<any | null>(null);
   const [dragActive, setDragActive] = useState(false);
 
-  const subjects = ['General', 'Computer Science', 'Physics', 'Mathematics', 'Biology', 'Chemistry', 'History', 'Economics', 'Law'];
+  // Only suggestions — users can type any subject, course, exam or skill
+  const subjects = [
+    'General',
+    'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science', 'Engineering',
+    'Medicine / Nursing', 'Accountancy', 'Business Studies', 'Economics', 'Finance', 'Marketing',
+    'History', 'Geography', 'Political Science', 'Sociology', 'Psychology', 'Philosophy',
+    'English Literature', 'Hindi', 'Languages', 'Law', 'Arts & Design', 'Music',
+    'Competitive Exams (UPSC / SSC / Banking)', 'JEE / NEET', 'Professional Skills', 'Other'
+  ];
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -70,7 +79,7 @@ export const UploadView: React.FC = () => {
 
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('subject', subject);
+    formData.append('subject', subject.trim() || 'General');
 
     try {
       const res = await api.uploadDocument(formData);
@@ -83,109 +92,21 @@ export const UploadView: React.FC = () => {
     }
   };
 
-  // One-click Sample Material uploader for instant testing
-  const handleUploadSample = async (sampleType: 'physics' | 'cs') => {
-    setUploading(true);
-    setError(null);
-
-    let content = '';
-    let name = '';
-    let sub = '';
-
-    if (sampleType === 'physics') {
-      name = 'Quantum_Mechanics_Fundamentals.txt';
-      sub = 'Physics';
-      content = `# Introduction to Quantum Mechanics and Wave Mechanics
-
-## Chapter 1: The Foundations of Quantum Theory
-Classical physics assumed that light consists strictly of continuous electromagnetic waves, while matter consists of discrete localized particles. However, groundbreaking experiments in the early 20th century shattered this separation. Max Planck observed that black-body radiation could only be explained if electromagnetic energy is emitted and absorbed in discrete packets called quanta. The energy of a quantum is given by E = hν, where h is Planck's constant (6.626 x 10^-34 J·s) and ν is the frequency.
-
-In 1905, Albert Einstein extended this concept to explain the photoelectric effect, demonstrating that light behaves as localized packets of energy called photons. When light strikes a metallic surface, electrons are ejected only if the incident photon frequency exceeds a threshold frequency, regardless of the light intensity.
-
-## Chapter 2: Wave-Particle Duality and De Broglie Hypothesis
-In 1924, Louis de Broglie hypothesized that if light waves possess particle-like characteristics, then particles of matter such as electrons must also exhibit wave-like properties. The wavelength associated with any moving matter is given by λ = h / p, where p = mv is the relativistic momentum.
-
-This hypothesis was confirmed experimentally by Davisson and Germer in 1927, who observed diffraction patterns when an electron beam was scattered by a nickel crystal. Diffraction is exclusively a wave phenomenon, proving unequivocally that moving matter possesses an intrinsic wave nature.
-
-## Chapter 3: The Heisenberg Uncertainty Principle
-Werner Heisenberg formulated the fundamental mathematical limit of simultaneous measurements in quantum systems. The Heisenberg Uncertainty Principle states that it is physically impossible to simultaneously determine both the exact position (x) and the exact momentum (p) of a subatomic particle with arbitrary precision.
-Mathematically: Δx · Δp ≥ ℏ / 2, where ℏ = h / 2π.
-A related relation holds for energy and time: ΔE · Δt ≥ ℏ / 2.
-This principle is not an artifact of imperfect measurement tools; it is an inherent property of wave-particle systems.
-
-## Chapter 4: The Schrödinger Wave Equation
-Erwin Schrödinger introduced the fundamental equation governing the behavior of non-relativistic quantum systems. The state of a quantum particle is described completely by a wave function, denoted as Ψ(x, t).
-The time-dependent Schrödinger equation is given by:
-iℏ ∂Ψ/∂t = ĤΨ, where Ĥ is the Hamiltonian operator.
-Max Born provided the physical interpretation: the absolute square of the wave function |Ψ(x,t)|² represents the probability density of finding the particle at position x at time t.
-
-## Chapter 5: Quantum Tunneling and Real-World Applications
-Quantum tunneling is a quantum mechanical phenomenon where a particle penetrates through a potential energy barrier higher than its kinetic energy. In classical mechanics, a particle lacking sufficient energy is reflected with 100% certainty. In quantum mechanics, because the wave function does not instantly drop to zero inside the barrier, there is an exponential decay and a non-zero probability of the particle appearing on the opposite side.
-Applications of quantum tunneling include:
-1. Alpha decay in radioactive atomic nuclei.
-2. Nuclear fusion in the sun powering stellar energy.
-3. Flash memory and tunnel diodes in modern microchips.
-4. Scanning Tunneling Microscopy (STM) allowing visualization of individual atoms.`;
-    } else {
-      name = 'Operating_Systems_Concurrency.txt';
-      sub = 'Computer Science';
-      content = `# Operating Systems: Processes, Concurrency, and Memory Management
-
-## Chapter 1: Processes and Process Control Blocks (PCB)
-An operating system process is an executing program including the program counter, CPU registers, stack, and heap. The kernel represents each process through a Process Control Block (PCB). The PCB tracks the process state: New, Ready, Running, Waiting, and Terminated.
-When the CPU switches between processes, the system performs a Context Switch. Context switching incurs computational overhead as the operating system saves register values to the PCB and restores the next process's state.
-
-## Chapter 2: Threads and Multithreading
-A thread is the fundamental unit of CPU utilization. It comprises a thread ID, program counter, register set, and a stack. Multiple threads within the same process share code, data sections, and operating system resources such as open files.
-Benefits of multithreading include responsiveness, resource sharing, economy over process creation, and scalability across multi-core processors.
-
-## Chapter 3: The Critical Section Problem and Synchronization
-When multiple concurrent threads access shared data, race conditions occur if the outcome depends on the execution order. The critical section problem requires three essential properties:
-1. Mutual Exclusion: If process P is executing in its critical section, no other processes can execute in their critical sections.
-2. Progress: If no process is executing in its critical section and some processes wish to enter, only those processes not executing in their remainder sections can participate in deciding who enters next.
-3. Bounded Waiting: A bound must exist on the number of times other processes are allowed to enter their critical sections after a process has requested entry.
-Mechanisms to solve synchronization include Mutex Locks, Semaphores (Counting and Binary), and Monitors.
-
-## Chapter 4: Deadlocks and Conditions
-A deadlock occurs when a set of blocked processes each holds a resource and waits to acquire a resource held by another process in the set. Four Coffman conditions must hold simultaneously for a deadlock:
-1. Mutual Exclusion
-2. Hold and Wait
-3. No Preemption
-4. Circular Wait
-Deadlock handling strategies include Prevention, Avoidance (e.g. Dijkstra's Banker's Algorithm), and Detection & Recovery.
-
-## Chapter 5: Virtual Memory and Paging
-Virtual memory separates user logical memory from physical memory. Paging eliminates external fragmentation by dividing physical memory into fixed-size frames and logical memory into pages of the identical size.
-A Translation Lookaside Buffer (TLB) acts as a high-speed hardware cache for page table lookups. Page fault occurs when a process attempts to access a page marked invalid in the page table, triggering the OS to fetch the page from secondary storage.`;
-    }
-
-    const sampleBlob = new Blob([content], { type: 'text/plain' });
-    const sampleFile = new File([sampleBlob], name, { type: 'text/plain' });
-
-    const formData = new FormData();
-    formData.append('file', sampleFile);
-    formData.append('subject', sub);
-
-    try {
-      const res = await api.uploadDocument(formData);
-      setSuccessDoc(res.document);
-      setSelectedDocumentId(res.document.id);
-    } catch (err: any) {
-      setError(err.message || 'Sample upload failed');
-    } finally {
-      setUploading(false);
-    }
-  };
-
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', padding: '30px 24px 60px' }}>
-      <div style={{ marginBottom: '28px' }}>
-        <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '6px' }}>
-          Upload Study Material
-        </h2>
-        <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>
-          Upload textbooks, lecture notes, question papers, or articles. StudyMate will extract, index, and organize every page for AI processing.
-        </p>
+      <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 320px' }}>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '6px' }}>
+            Upload Study Material
+          </h2>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>
+            Upload textbooks, lecture notes, question papers, or articles. StudyMate will extract, index, and organize every page for AI processing.
+          </p>
+        </div>
+        <button className="btn btn-secondary" onClick={() => setDocManagerOpen(true)}>
+          <FolderCog size={16} />
+          <span>Manage Uploaded Documents</span>
+        </button>
       </div>
 
       {/* Success Banner if uploaded */}
@@ -347,15 +268,22 @@ A Translation Lookaside Buffer (TLB) acts as a high-speed hardware cache for pag
                 <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-main)' }}>
                   Organize by Subject / Course
                 </label>
-                <select
+                {/* Free text: type any subject/course, or pick a suggestion */}
+                <input
+                  type="text"
+                  list="subject-suggestions"
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
-                  className="select"
-                >
+                  onBlur={() => !subject.trim() && setSubject('General')}
+                  className="input"
+                  placeholder="Type any subject or course (e.g. Accountancy, NEET Biology)"
+                  maxLength={60}
+                />
+                <datalist id="subject-suggestions">
                   {subjects.map(s => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s} />
                   ))}
-                </select>
+                </datalist>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'flex-end' }}>
@@ -402,63 +330,6 @@ A Translation Lookaside Buffer (TLB) acts as a high-speed hardware cache for pag
             </div>
           )}
 
-          {/* One-click Sample Materials */}
-          <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-              <Sparkles size={16} color="var(--primary)" />
-              <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>
-                Don't have a document ready? Test with curated study samples:
-              </h3>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-              <div
-                onClick={() => handleUploadSample('physics')}
-                className="card"
-                style={{
-                  padding: '16px 18px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'var(--bg-subtle)'
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                    ⚛️ Quantum Mechanics Fundamentals
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Wave-particle duality, Heisenberg, Schrödinger equation
-                  </div>
-                </div>
-                <ArrowRight size={16} color="var(--primary)" />
-              </div>
-
-              <div
-                onClick={() => handleUploadSample('cs')}
-                className="card"
-                style={{
-                  padding: '16px 18px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'var(--bg-subtle)'
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-main)' }}>
-                    💻 Operating Systems & Concurrency
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Processes, threads, critical sections, deadlock conditions
-                  </div>
-                </div>
-                <ArrowRight size={16} color="var(--primary)" />
-              </div>
-            </div>
-          </div>
         </div>
       )}
     </div>

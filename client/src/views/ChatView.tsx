@@ -12,7 +12,10 @@ import {
   MicOff,
   BookOpen,
   ArrowRight,
-  HelpCircle
+  HelpCircle,
+  Plus,
+  Trash2,
+  MessageCircle
 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { useAuth } from '../context/AuthContext.js';
@@ -23,6 +26,7 @@ export const ChatView: React.FC = () => {
   const { selectedDocumentId, setSelectedDocumentId, setActiveTab } = useAuth();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [session, setSession] = useState<ChatSession | null>(null);
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
@@ -50,29 +54,75 @@ export const ChatView: React.FC = () => {
         const activeDocId = selectedDocumentId || docsRes.documents[0].id;
         if (!selectedDocumentId) setSelectedDocumentId(activeDocId);
 
-        // Get or create session
+        // Load this document's chat history; open the most recent chat
         const sessRes = await api.getChatSessions(activeDocId);
-        if (sessRes.sessions?.length > 0) {
-          setSession(sessRes.sessions[0]);
-          const msgRes = await api.getChatMessages(sessRes.sessions[0].id);
-          setMessages(msgRes.messages || []);
+        const list: ChatSession[] = sessRes.sessions || [];
+        setSessions(list);
+        if (list.length > 0) {
+          await openSession(list[0]);
         } else {
-          const newSess = await api.createChatSession({
-            documentId: activeDocId,
-            title: 'Document Q&A'
-          });
-          setSession(newSess.session);
+          // Nothing yet → start in a blank "new chat" (created lazily on first message)
+          setSession(null);
           setMessages([]);
         }
+      } else {
+        setSessions([]);
+        setSession(null);
+        setMessages([]);
       }
     } catch (err) {
       console.error(err);
     }
   };
 
+  const openSession = async (s: ChatSession) => {
+    setSession(s);
+    setMessages([]);
+    try {
+      const msgRes = await api.getChatMessages(s.id);
+      setMessages(msgRes.messages || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Like ChatGPT's "New chat": old chats stay in history, a blank chat opens
+  const handleNewChat = () => {
+    window.speechSynthesis?.cancel();
+    setSpeakingId(null);
+    setSession(null);
+    setMessages([]);
+    setInputText('');
+  };
+
+  const handleDeleteSession = async (s: ChatSession) => {
+    if (!confirm(`Delete chat "${s.title}"? This cannot be undone.`)) return;
+    try {
+      await api.deleteChatSession(s.id);
+      setSessions(prev => prev.filter(x => x.id !== s.id));
+      if (session?.id === s.id) handleNewChat();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete chat');
+    }
+  };
+
   const handleSendMessage = async (customText?: string) => {
     const textToSend = customText || inputText;
-    if (!textToSend.trim() || !session) return;
+    if (!textToSend.trim() || !selectedDocumentId) return;
+
+    // Create the chat session on the first message of a new chat
+    let activeSession = session;
+    if (!activeSession) {
+      try {
+        const created = await api.createChatSession({ documentId: selectedDocumentId, title: 'New Chat' });
+        activeSession = created.session as ChatSession;
+        setSession(activeSession);
+      } catch (err: any) {
+        alert(err.message || 'Failed to start a new chat');
+        return;
+      }
+    }
+    const currentSession = activeSession as ChatSession;
 
     const userTempMsg: ChatMessage = {
       id: 'temp_u_' + Date.now(),
@@ -85,8 +135,17 @@ export const ChatView: React.FC = () => {
     setSending(true);
 
     try {
-      const res = await api.sendChatMessage(session.id, textToSend.trim(), language);
+      const res = await api.sendChatMessage(currentSession.id, textToSend.trim(), language);
       setMessages(prev => [...prev.filter(m => m.id !== userTempMsg.id), res.userMessage, res.assistantMessage]);
+
+      // Move this chat to the top of the history with its (possibly new) title
+      const updated: ChatSession = {
+        ...currentSession,
+        title: res.sessionTitle || currentSession.title,
+        updated_at: new Date().toISOString()
+      };
+      setSession(updated);
+      setSessions(prev => [updated, ...prev.filter(x => x.id !== updated.id)]);
     } catch (err: any) {
       alert(err.message || 'Failed to send message');
     } finally {
@@ -170,8 +229,8 @@ export const ChatView: React.FC = () => {
 
   const promptSuggestions = [
     'Explain the core concept step-by-step with an analogy',
-    'What are the key formulas and boundary conditions in this document?',
-    'Give a real-world scenario where this mechanism applies',
+    'What are the most important points I must remember for my exam?',
+    'Give a real-life example of the main idea in this document',
     'Summarize the primary differences in a comparative table'
   ];
 
@@ -223,11 +282,57 @@ export const ChatView: React.FC = () => {
         </div>
       </div>
 
+      <div className="chat-layout">
+      {/* Chat history (like ChatGPT's sidebar) */}
+      <aside className="chat-history card">
+        <button
+          onClick={handleNewChat}
+          className="btn btn-primary btn-sm chat-new-btn"
+          disabled={!selectedDocumentId}
+        >
+          <Plus size={15} />
+          <span>New Chat</span>
+        </button>
+        <div className="chat-history-label">Previous chats</div>
+        <div className="chat-history-list">
+          {sessions.length === 0 ? (
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-soft)', padding: '6px 4px' }}>
+              No chats yet. Ask your first question!
+            </div>
+          ) : (
+            sessions.map(s => (
+              <div
+                key={s.id}
+                className={`chat-history-item${session?.id === s.id ? ' active' : ''}`}
+                onClick={() => session?.id !== s.id && openSession(s)}
+                title={s.title}
+              >
+                <MessageCircle size={14} style={{ flexShrink: 0 }} />
+                <span className="chat-history-title">{s.title}</span>
+                <button
+                  className="chat-history-delete"
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleDeleteSession(s);
+                  }}
+                  title="Delete chat"
+                  aria-label="Delete chat"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </aside>
+
+      <div className="chat-main">
       {/* Messages Thread Container */}
       <div
         className="card"
         style={{
           flex: 1,
+          minHeight: 0,
           overflowY: 'auto',
           padding: '24px',
           display: 'flex',
@@ -434,6 +539,8 @@ export const ChatView: React.FC = () => {
             </>
           )}
         </button>
+      </div>
+      </div>
       </div>
     </div>
   );

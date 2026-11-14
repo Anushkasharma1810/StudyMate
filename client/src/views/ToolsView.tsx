@@ -20,7 +20,7 @@ export const ToolsView: React.FC = () => {
   const [activeTool, setActiveTool] = useState<'explainer' | 'mindmap' | 'compare' | 'questions'>('explainer');
 
   // Concept Explainer state
-  const [concept, setConcept] = useState('Heisenberg Uncertainty Principle');
+  const [concept, setConcept] = useState('');
   const [explainLevel, setExplainLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
   const [explainOutput, setExplainOutput] = useState<string | null>(null);
   const [explaining, setExplaining] = useState(false);
@@ -31,9 +31,9 @@ export const ToolsView: React.FC = () => {
 
   // Compare & Simplify state
   const [compareMode, setCompareMode] = useState<'compare' | 'simplify'>('compare');
-  const [conceptA, setConceptA] = useState('Process');
-  const [conceptB, setConceptB] = useState('Thread');
-  const [textToSimplify, setTextToSimplify] = useState('Quantum tunneling describes a quantum mechanical phenomenon where a wave function can propagate through a potential barrier higher than the particle\'s mechanical energy.');
+  const [conceptA, setConceptA] = useState('');
+  const [conceptB, setConceptB] = useState('');
+  const [textToSimplify, setTextToSimplify] = useState('');
   const [compareResult, setCompareResult] = useState<string | null>(null);
   const [comparing, setComparing] = useState(false);
 
@@ -81,6 +81,14 @@ export const ToolsView: React.FC = () => {
   };
 
   const handleCompareSimplify = async () => {
+    if (compareMode === 'compare' && (!conceptA.trim() || !conceptB.trim())) {
+      alert('Please enter both concepts to compare.');
+      return;
+    }
+    if (compareMode === 'simplify' && !textToSimplify.trim()) {
+      alert('Please paste some text to simplify.');
+      return;
+    }
     setComparing(true);
     try {
       const res = await api.compareSimplify({
@@ -182,7 +190,7 @@ export const ToolsView: React.FC = () => {
                 value={concept}
                 onChange={e => setConcept(e.target.value)}
                 className="input"
-                placeholder="e.g. Wave-Particle Duality"
+                placeholder="Any topic — e.g. Photosynthesis, GST, Fundamental Rights, Recursion"
               />
             </div>
 
@@ -195,9 +203,9 @@ export const ToolsView: React.FC = () => {
                 onChange={e => setExplainLevel(e.target.value as any)}
                 className="select"
               >
-                <option value="beginner">Beginner (Everyday Analogies & Plain English)</option>
-                <option value="intermediate">Intermediate (College Academic Rigor)</option>
-                <option value="advanced">Advanced (Mathematical Proofs & Edge Cases)</option>
+                <option value="beginner">Beginner (Simple Language & Everyday Examples)</option>
+                <option value="intermediate">Intermediate (Standard Course / Exam Depth)</option>
+                <option value="advanced">Advanced (Expert Depth, Nuances & Exceptions)</option>
               </select>
             </div>
 
@@ -234,7 +242,7 @@ export const ToolsView: React.FC = () => {
                 fontSize: '0.9rem'
               }}
             >
-              {explainOutput || 'Enter a concept on the left and click "Explain Concept" to generate multi-level analogies, mechanisms, and practice checks.'}
+              {explainOutput || 'Enter any concept from any subject on the left and click "Explain Concept" to get a simple definition, analogy, step-by-step breakdown, and a practice check.'}
             </div>
           </div>
         </div>
@@ -374,7 +382,7 @@ export const ToolsView: React.FC = () => {
                     value={conceptA}
                     onChange={e => setConceptA(e.target.value)}
                     className="input"
-                    placeholder="e.g. TCP"
+                    placeholder="e.g. Mitosis, Monarchy, Debit"
                   />
                 </div>
 
@@ -387,7 +395,7 @@ export const ToolsView: React.FC = () => {
                     value={conceptB}
                     onChange={e => setConceptB(e.target.value)}
                     className="input"
-                    placeholder="e.g. UDP"
+                    placeholder="e.g. Meiosis, Democracy, Credit"
                   />
                 </div>
               </div>
@@ -399,6 +407,7 @@ export const ToolsView: React.FC = () => {
                 <textarea
                   value={textToSimplify}
                   onChange={e => setTextToSimplify(e.target.value)}
+                  placeholder="Paste any difficult paragraph from your textbook, notes or article — any subject."
                   className="textarea"
                   style={{ minHeight: '120px' }}
                 />

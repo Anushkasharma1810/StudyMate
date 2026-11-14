@@ -236,9 +236,258 @@ h1, h2, h3, h4, h5, h6 {
   animation: modalIn 0.2s ease-out;
 }
 
+/* Auth modal */
+.auth-modal {
+  max-width: 420px;
+}
+.auth-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 18px;
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+}
+.auth-toggle button {
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.auth-toggle button.active {
+  background: var(--primary);
+  color: #FFFFFF;
+}
+
+/* Ask Your PDF – chat history layout */
+.chat-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 16px;
+}
+.chat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chat-history {
+  width: 230px;
+  flex-shrink: 0;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+.chat-new-btn {
+  width: 100%;
+}
+.chat-history-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-soft);
+  padding: 0 4px;
+}
+.chat-history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.chat-history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.chat-history-item:hover {
+  background: var(--bg-subtle);
+  color: var(--text-main);
+}
+.chat-history-item.active {
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 600;
+}
+.chat-history-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-history-delete {
+  background: none;
+  border: none;
+  padding: 2px;
+  color: var(--text-soft);
+  cursor: pointer;
+  display: flex;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.chat-history-item:hover .chat-history-delete,
+.chat-history-item.active .chat-history-delete {
+  opacity: 1;
+}
+.chat-history-delete:hover {
+  color: #EF4444;
+}
+@media (max-width: 860px) {
+  .chat-layout {
+    flex-direction: column;
+  }
+  .chat-history {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    padding: 8px;
+  }
+  .chat-new-btn {
+    width: auto;
+    flex-shrink: 0;
+  }
+  .chat-history-label {
+    display: none;
+  }
+  .chat-history-list {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .chat-history-item {
+    flex-shrink: 0;
+    max-width: 200px;
+  }
+  .chat-history-delete {
+    opacity: 1;
+  }
+}
+
+/* Manage Documents modal */
+.doc-manager {
+  max-width: 640px;
+}
+.doc-manager-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.doc-manager-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+  flex-wrap: wrap;
+}
+.doc-manager-row.active {
+  border-color: var(--primary);
+}
+.doc-manager-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+.doc-manager-title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.doc-manager-meta {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  margin-top: 2px;
+}
+.doc-manager-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+@media (max-width: 520px) {
+  .doc-manager-actions {
+    width: 100%;
+  }
+  .doc-manager-actions .btn {
+    flex: 1 1 0;
+  }
+}
+
+/* Account card (Settings) */
+.account-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.account-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1 1 240px;
+}
+.account-identity .account-text {
+  min-width: 0;
+}
+.account-identity .account-text > div {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+@media (max-width: 560px) {
+  .account-actions {
+    width: 100%;
+  }
+  .account-actions .btn {
+    flex: 1 1 0;
+  }
+}
+
 @keyframes modalIn {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Backdrop behind the phone sidebar drawer */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Form Inputs */

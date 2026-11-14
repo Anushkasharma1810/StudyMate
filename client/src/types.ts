@@ -2,14 +2,14 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  isGuest?: boolean;
 }
 
 export interface UserPreferences {
   theme: 'light' | 'dark';
   language: 'en' | 'hi' | 'hinglish';
-  aiProvider: 'gemini' | 'openai';
-  hasApiKeyOverride: boolean;
-  keyPreview?: string;
+  /** True when the site owner has configured AI on the server */
+  aiAvailable?: boolean;
 }
 
 export interface DocumentItem {

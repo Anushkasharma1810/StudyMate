@@ -18,13 +18,13 @@ import {
 import { useAuth } from '../context/AuthContext.js';
 
 export const LandingView: React.FC = () => {
-  const { setActiveTab, demoLogin } = useAuth();
+  const { setActiveTab, isGuest, openAuthModal } = useAuth();
 
   const features = [
     {
       icon: FileText,
       title: 'Structured AI Notes',
-      desc: 'Convert heavy textbooks and slides into exam-oriented summaries, definition glossaries, and formula cheat-sheets in English, Hindi, or Hinglish.'
+      desc: 'Convert heavy textbooks and slides into exam-oriented summaries, definition glossaries, and key-fact cheat-sheets for any subject — in English, Hindi, or Hinglish.'
     },
     {
       icon: MessageSquareText,
@@ -90,7 +90,7 @@ export const LandingView: React.FC = () => {
           }}
         >
           <Sparkles size={16} />
-          <span>Your Complete Academic AI Study Partner</span>
+          <span>One AI Study Partner for Every Learner & Every Exam</span>
         </div>
 
         <h1
@@ -123,6 +123,15 @@ export const LandingView: React.FC = () => {
           StudyMate transforms dense textbooks, PDFs, and lecture notes into structured study sheets, document-grounded AI tutors, adaptive practice quizzes, and spaced-repetition flashcards.
         </p>
 
+        {/* Built for every learner, every exam */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', maxWidth: '760px', margin: '-12px auto 34px' }}>
+          {['10th & 12th Boards', 'JEE', 'NEET', 'GATE', 'UPSC / SSC', 'College End-Sems', 'CA / CS', 'Any Subject or Skill'].map(tag => (
+            <span key={tag} className="badge badge-subtle" style={{ padding: '6px 12px', fontSize: '0.8rem' }}>
+              {tag}
+            </span>
+          ))}
+        </div>
+
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -141,13 +150,15 @@ export const LandingView: React.FC = () => {
             <span>Upload Document</span>
           </button>
 
-          <button
-            onClick={demoLogin}
-            className="btn btn-ghost btn-lg"
-            style={{ textDecoration: 'underline' }}
-          >
-            <span>Explore Demo Data</span>
-          </button>
+          {isGuest && (
+            <button
+              onClick={() => openAuthModal('signup')}
+              className="btn btn-ghost btn-lg"
+              style={{ textDecoration: 'underline' }}
+            >
+              <span>Create Free Account</span>
+            </button>
+          )}
         </div>
       </section>
 
@@ -169,7 +180,7 @@ export const LandingView: React.FC = () => {
             <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#F59E0B' }} />
             <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#10B981' }} />
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginLeft: '10px' }}>
-              StudyMate Workspace — Quantum Mechanics & Atomic Structure
+              StudyMate Workspace — Science, Commerce, Arts, Law, Exams & more
             </span>
           </div>
           <div className="badge badge-primary">Interactive Preview</div>
@@ -182,11 +193,11 @@ export const LandingView: React.FC = () => {
               <h3 style={{ fontSize: '1rem', fontWeight: 700 }}>AI Generated Notes</h3>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: 1.5 }}>
-              Includes learning objectives, key definitions, formulas, and 5-minute revision summaries.
+              Includes learning objectives, key definitions, important facts, and 5-minute revision summaries.
             </p>
             <div style={{ background: 'var(--bg-subtle)', padding: '12px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', fontFamily: 'var(--font-mono)' }}>
-              # Heisenberg Uncertainty Principle<br />
-              Δx · Δp ≥ ℏ / 2<br />
+              # Fundamental Rights<br />
+              Article 14 — Equality before law<br />
               <span style={{ color: 'var(--primary)' }}>[Source: Page 4, Section 2.1]</span>
             </div>
           </div>
@@ -198,10 +209,10 @@ export const LandingView: React.FC = () => {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ background: 'var(--primary-light)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.82rem', alignSelf: 'flex-end', color: 'var(--primary)', fontWeight: 500 }}>
-                Can you explain wave-particle duality simply?
+                Can you explain demand and supply simply?
               </div>
               <div style={{ background: 'var(--bg-subtle)', padding: '8px 12px', borderRadius: '8px', fontSize: '0.82rem', color: 'var(--text-main)', border: '1px solid var(--border-subtle)' }}>
-                Matter exhibits properties of both waves and particles [Page 2]. Think of light like ripples in water that can also hit like tiny billiard balls.
+                When a price goes up, people buy less but sellers want to sell more [Page 2]. Think of mangoes in summer: plenty of supply, so prices drop.
               </div>
             </div>
           </div>

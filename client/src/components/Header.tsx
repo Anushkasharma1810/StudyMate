@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Sun, Moon, UploadCloud, Sparkles, AlertCircle, FileText } from 'lucide-react';
+import { Sun, Moon, UploadCloud, Sparkles, FileText, FolderCog, Menu } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext.js';
 import { useAuth } from '../context/AuthContext.js';
 import { api } from '../api/client.js';
 import { DocumentItem } from '../types.js';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  isMobile: boolean;
+  onMenuClick: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ isMobile, onMenuClick }) => {
   const { theme, toggleTheme } = useTheme();
-  const { activeTab, setActiveTab, preferences, selectedDocumentId, setSelectedDocumentId } = useAuth();
+  const { activeTab, setActiveTab, preferences, selectedDocumentId, setSelectedDocumentId, setDocManagerOpen } = useAuth();
   const [docs, setDocs] = useState<DocumentItem[]>([]);
 
   useEffect(() => {
@@ -31,7 +36,7 @@ export const Header: React.FC = () => {
     planner: { title: 'Personalized Study Planner', subtitle: 'Generate day-by-day revision schedules tailored to your exams' },
     tools: { title: 'AI Learning Tools', subtitle: 'Concept explainer, visual mind maps, and exam questions' },
     analytics: { title: 'Progress & Analytics', subtitle: 'Performance charts, topic accuracy, and streak tracking' },
-    settings: { title: 'Settings & Preferences', subtitle: 'Configure theme, language, and Gemini or OpenAI API keys' },
+    settings: { title: 'Settings & Preferences', subtitle: 'Manage your theme, study language, and account' },
   };
 
   const current = titles[activeTab] || { title: 'StudyMate', subtitle: 'AI Study Assistant' };
@@ -39,38 +44,76 @@ export const Header: React.FC = () => {
   return (
     <header
       style={{
-        height: '68px',
+        height: isMobile ? '60px' : '68px',
         backgroundColor: 'var(--bg-card)',
         borderBottom: '1px solid var(--border-subtle)',
-        padding: '0 28px',
+        padding: isMobile ? '0 12px' : '0 28px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        gap: '10px',
         position: 'sticky',
         top: 0,
         zIndex: 40,
         transition: 'all 0.2s ease'
       }}
     >
-      <div>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2 }}>
-          {current.title}
-        </h1>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          {current.subtitle}
-        </p>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+        {/* Phone: hamburger button opens the sidebar drawer */}
+        {isMobile && (
+          <button
+            onClick={onMenuClick}
+            aria-label="Open menu"
+            title="Menu"
+            style={{
+              background: 'var(--bg-subtle)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              width: '38px',
+              height: '38px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--text-main)',
+              flexShrink: 0
+            }}
+          >
+            <Menu size={20} />
+          </button>
+        )}
+        <div style={{ minWidth: 0 }}>
+          <h1
+            style={{
+              fontSize: isMobile ? '1.02rem' : '1.25rem',
+              fontWeight: 700,
+              color: 'var(--text-main)',
+              lineHeight: 1.2,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {current.title}
+          </h1>
+          {!isMobile && (
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              {current.subtitle}
+            </p>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '14px', flexShrink: 0 }}>
         {/* Active Document Selector (if documents exist) */}
         {docs.length > 0 && activeTab !== 'landing' && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <FileText size={15} color="var(--primary)" />
+            {!isMobile && <FileText size={15} color="var(--primary)" />}
             <select
               value={selectedDocumentId || ''}
               onChange={e => setSelectedDocumentId(e.target.value)}
               className="select"
-              style={{ padding: '6px 12px', fontSize: '0.82rem', maxWidth: '200px' }}
+              style={{ padding: '6px 10px', fontSize: '0.82rem', maxWidth: isMobile ? '110px' : '200px' }}
               title="Active Study Document"
             >
               {docs.map(d => (
@@ -79,29 +122,27 @@ export const Header: React.FC = () => {
                 </option>
               ))}
             </select>
+            <button
+              onClick={() => setDocManagerOpen(true)}
+              className="btn btn-secondary btn-sm"
+              style={{ padding: '6px 8px' }}
+              title="Manage documents (delete / replace)"
+              aria-label="Manage documents"
+            >
+              <FolderCog size={16} />
+            </button>
           </div>
         )}
 
-        {/* AI Key Status Badge */}
-        {preferences?.hasApiKeyOverride ? (
+        {/* AI is set up by the site owner on the server — users never deal with API keys */}
+        {preferences?.aiAvailable && !isMobile && (
           <div
-            onClick={() => setActiveTab('settings')}
             className="badge badge-success"
-            style={{ cursor: 'pointer', padding: '6px 10px', fontSize: '0.78rem' }}
-            title="Live AI API is configured and active"
+            style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+            title="AI features are ready to use"
           >
             <Sparkles size={13} />
-            <span>Live AI Active ({preferences.aiProvider.toUpperCase()})</span>
-          </div>
-        ) : (
-          <div
-            onClick={() => setActiveTab('settings')}
-            className="badge badge-warning"
-            style={{ cursor: 'pointer', padding: '6px 10px', fontSize: '0.78rem' }}
-            title="Click to connect your Gemini or OpenAI API Key in Settings"
-          >
-            <AlertCircle size={13} />
-            <span>Connect AI Key</span>
+            <span>AI Powered</span>
           </div>
         )}
 
@@ -110,9 +151,12 @@ export const Header: React.FC = () => {
           <button
             onClick={() => setActiveTab('upload')}
             className="btn btn-primary btn-sm"
+            style={isMobile ? { padding: '8px' } : undefined}
+            title="Upload"
+            aria-label="Upload"
           >
             <UploadCloud size={15} />
-            <span>Upload</span>
+            {!isMobile && <span>Upload</span>}
           </button>
         )}
 

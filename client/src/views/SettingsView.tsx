@@ -1,39 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Settings,
-  Sparkles,
-  Key,
-  Globe,
   Sun,
   Moon,
   Save,
   Check,
   AlertCircle,
-  ExternalLink,
-  ShieldCheck,
-  UserCheck,
-  Trash2
+  LogIn,
+  LogOut,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.js';
 import { useTheme } from '../context/ThemeContext.js';
 
 export const SettingsView: React.FC = () => {
-  const { user, preferences, updatePreferences } = useAuth();
+  const { user, preferences, updatePreferences, isGuest, openAuthModal, logout } = useAuth();
   const { theme, setTheme } = useTheme();
 
-  const [aiProvider, setAiProvider] = useState<'gemini' | 'openai'>('gemini');
   const [language, setLanguage] = useState<'en' | 'hi' | 'hinglish'>('en');
-  const [apiKey, setApiKey] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Sync state when preferences are loaded or updated from the server
   useEffect(() => {
-    if (preferences) {
-      if (preferences.aiProvider) setAiProvider(preferences.aiProvider);
-      if (preferences.language) setLanguage(preferences.language);
-    }
+    if (preferences?.language) setLanguage(preferences.language);
   }, [preferences]);
 
   const handleSave = async () => {
@@ -42,13 +32,7 @@ export const SettingsView: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      await updatePreferences({
-        theme,
-        language,
-        aiProvider,
-        apiKeyOverride: apiKey.trim() ? apiKey.trim() : undefined
-      });
-      setApiKey(''); // Clear the input field for security so raw key is not displayed
+      await updatePreferences({ theme, language });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     } catch (err: any) {
@@ -58,37 +42,14 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleRemoveKey = async () => {
-    if (!confirm('Are you sure you want to remove your custom API key? StudyMate will revert to local heuristic processing.')) {
-      return;
-    }
-    setSaving(true);
-    setErrorMsg(null);
-    try {
-      await updatePreferences({
-        theme,
-        language,
-        aiProvider,
-        apiKeyOverride: ''
-      });
-      setApiKey('');
-      setSaveSuccess(true);
-      setTimeout(() => setSaveSuccess(false), 4000);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to remove API key');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div style={{ maxWidth: '840px', margin: '0 auto', padding: '24px 24px 60px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h2 style={{ fontSize: '1.6rem', fontWeight: 800, marginBottom: '6px' }}>
-          Settings & AI Configuration
+          Settings
         </h2>
         <p style={{ color: 'var(--text-muted)', fontSize: '0.92rem' }}>
-          Manage your theme, study language, and configure your live AI model credentials.
+          Manage your theme, study language, and account.
         </p>
       </div>
 
@@ -109,7 +70,7 @@ export const SettingsView: React.FC = () => {
           }}
         >
           <Check size={18} style={{ flexShrink: 0 }} />
-          <span>Settings saved! Your AI provider and key configuration are now active and persisted.</span>
+          <span>Settings saved!</span>
         </div>
       )}
 
@@ -134,116 +95,6 @@ export const SettingsView: React.FC = () => {
         </div>
       )}
 
-      {/* AI Provider Configuration Card */}
-      <div className="card" style={{ padding: '28px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Key size={20} color="var(--primary)" />
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>AI Provider & API Key</h3>
-          </div>
-          {preferences?.hasApiKeyOverride ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="badge badge-success">
-                ✓ Live Key Active ({preferences.aiProvider?.toUpperCase()}: {preferences.keyPreview || '••••••••'})
-              </span>
-              <button
-                onClick={handleRemoveKey}
-                className="btn btn-ghost btn-sm"
-                style={{ color: 'var(--accent-rose)', padding: '4px 8px', fontSize: '0.78rem' }}
-                title="Remove API Key"
-              >
-                <Trash2 size={13} />
-                <span>Remove</span>
-              </button>
-            </div>
-          ) : (
-            <span className="badge badge-warning">Fallback / Local Heuristics</span>
-          )}
-        </div>
-
-        <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '20px', lineHeight: 1.6 }}>
-          StudyMate supports <strong>Google Gemini</strong> and <strong>OpenAI</strong>. Enter your personal API key below to enable real-time model synthesis for notes, quizzes, and grounded document chat. Keys are stored securely in local SQLite and never logged or exposed.
-        </p>
-
-        {/* Provider Choice */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
-          <div
-            onClick={() => setAiProvider('gemini')}
-            style={{
-              padding: '16px',
-              borderRadius: 'var(--radius-md)',
-              border: `2px solid ${aiProvider === 'gemini' ? 'var(--primary)' : 'var(--border-subtle)'}`,
-              background: aiProvider === 'gemini' ? 'var(--primary-light)' : 'var(--bg-subtle)',
-              cursor: 'pointer',
-              textAlign: 'center',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)', marginBottom: '4px' }}>
-              Google Gemini (Recommended)
-            </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-soft)' }}>
-              Uses Gemini 1.5 / 2.5 Flash
-            </div>
-          </div>
-
-          <div
-            onClick={() => setAiProvider('openai')}
-            style={{
-              padding: '16px',
-              borderRadius: 'var(--radius-md)',
-              border: `2px solid ${aiProvider === 'openai' ? 'var(--primary)' : 'var(--border-subtle)'}`,
-              background: aiProvider === 'openai' ? 'var(--primary-light)' : 'var(--bg-subtle)',
-              cursor: 'pointer',
-              textAlign: 'center',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)', marginBottom: '4px' }}>
-              OpenAI
-            </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-soft)' }}>
-              Uses GPT-4o-mini
-            </div>
-          </div>
-        </div>
-
-        {/* API Key Input */}
-        <div style={{ marginBottom: '14px' }}>
-          <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '6px' }}>
-            {aiProvider === 'gemini' ? 'Google Gemini API Key' : 'OpenAI API Key'}
-          </label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={e => setApiKey(e.target.value)}
-            className="input"
-            placeholder={
-              preferences?.hasApiKeyOverride
-                ? `Key is set (${preferences.keyPreview || '••••••••'}). Paste a new key to update, or leave blank to keep.`
-                : aiProvider === 'gemini'
-                ? 'Paste your Gemini API key (AIzaSy...)'
-                : 'Paste your OpenAI API key (sk-...)'
-            }
-          />
-        </div>
-
-        <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', background: 'var(--bg-subtle)', padding: '12px 16px', borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span>
-            Need a key? Get one from{' '}
-            {aiProvider === 'gemini' ? (
-              <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>
-                Google AI Studio (free tier available)
-              </a>
-            ) : (
-              <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', fontWeight: 600 }}>
-                OpenAI API Keys dashboard
-              </a>
-            )}
-          </span>
-          <ExternalLink size={14} color="var(--primary)" />
-        </div>
-      </div>
 
       {/* Interface & Language Preferences */}
       <div className="card" style={{ padding: '28px', marginBottom: '24px' }}>
@@ -298,29 +149,54 @@ export const SettingsView: React.FC = () => {
         <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '12px' }}>
           Account Information
         </h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '50%',
-              background: 'var(--primary-light)',
-              color: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 700
-            }}
-          >
-            {user?.name ? user.name.charAt(0) : 'U'}
+        <div className="account-row">
+          <div className="account-identity">
+            <div
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'var(--primary-light)',
+                color: 'var(--primary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                flexShrink: 0
+              }}
+            >
+              {isGuest ? 'G' : (user?.name?.charAt(0).toUpperCase() || 'U')}
+            </div>
+            <div className="account-text">
+              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                {isGuest ? 'Guest Student' : user?.name}
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                {isGuest
+                  ? 'Private guest workspace on this browser. Sign up to keep your work and use it on any device.'
+                  : `${user?.email} • Local SQLite Storage`}
+              </div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)' }}>
-              {user?.name || 'Alex Morgan'}
-            </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-              {user?.email || 'demo@studymate.ai'} • Local SQLite Storage
-            </div>
+
+          <div className="account-actions">
+            {isGuest ? (
+              <>
+                <button className="btn btn-secondary" onClick={() => openAuthModal('login')}>
+                  <LogIn size={16} />
+                  <span>Log In</span>
+                </button>
+                <button className="btn btn-primary" onClick={() => openAuthModal('signup')}>
+                  <UserPlus size={16} />
+                  <span>Sign Up</span>
+                </button>
+              </>
+            ) : (
+              <button className="btn btn-secondary" onClick={logout}>
+                <LogOut size={16} />
+                <span>Log Out</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
